@@ -21,6 +21,11 @@
     {% else %}
       {% seo %}
     {% endif %}
+    {% if site.fonts.preconnect_urls %}
+      {% for url in site.fonts.preconnect_urls %}
+        <link rel="preconnect" href="{{ url }}" crossorigin />
+      {% endfor %}
+    {% endif %}
 
     <link rel="manifest" href="{{ "/manifest.json" | relative_url }}">
     <meta name="theme-color" content="{{ site.manifest.theme_color | default: '#242e2b' }}"/>
@@ -34,6 +39,8 @@
     {% if site.favicons or site.avatarurl %}{% include site-favicons.html %}{% endif %}
 
     {% if site.google_analytics %}{% include site-analytics.html %}{% endif %}
+
+    {% include site-fonts.html %}
 
     {% include site-before-start.html %}
   </head>
