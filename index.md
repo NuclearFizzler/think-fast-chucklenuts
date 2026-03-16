@@ -2,84 +2,184 @@
 title: Think Fast Chucklenuts!
 feature_text: |
   ## Think Fast Chucklenuts!
-  An IoT wakeup device with a bright flair
+  An IoT Remote Wakeup Device with a bright flare
 feature_image: "assets/img/mask.png"
-excerpt: "We aim to solve oversleeping. Permanently"
+excerpt: "A CC3200-based IoT wakeup machine with a sleeping mask, speaker, OLED, and mobile app."
 ---
 
-*Think Fast Chucklenuts!* is an Internet-of-Things remote wakeup device. It consists of a sleeping mask that has extremely bright LEDs sewn into the lining, which will be triggered by a CC3200-based Main Controller at a certain time. 
+*Think Fast Chucklenuts!* consists of a sleeping mask that has extremely bright LEDs sewn into the lining, which will be triggered by a CC3200-based Main Controller at a certain time. The Main Controller will also display a submitted image and play a submitted sound, retrieved from a custom backend. Finally, users can use a custom mobile app to create wakeups and submit wakeup media to.   
 
-The Main Controller will also display a submitted image and play a submitted sound, retrieved from a custom backend. Finally, users can use a custom mobile app to create wakeups and submit wakeup media to.   
+
+### Video Demo
+
+#### Actual Demos
+<br/>
+<div style="display:flex; gap:10px; margin-top:10px;">
+
+  <div style="width:50%;">
+    <div style="font-weight:bold; margin-bottom:6px;">Scuffed Full Product Demo</div>
+    <video style="width:100%;" controls>
+      <source src="/assets/video/IMG_8130.mp4" type="video/mp4">
+      Your browser does not support the video tag.
+    </video>
+  </div>
+
+  <div style="width:50%;">
+    <div style="font-weight:bold; margin-bottom:6px;">Extra App Features</div>
+    <video style="width:100%;" controls>
+      <source src="/assets/video/IMG_8131_rotated.mp4" type="video/mp4">
+      Your browser does not support the video tag.
+    </video>
+  </div>
+
+</div>
+
+#### Cursed I2S Behavior
+<br/>
+<video width="100%" height="400" controls>
+  <source src="/assets/video/IMG_8127.mp4" type="video/mp4">
+  Your browser does not support the video tag.
+</video>
+---
+
+### Functional Specification
+![Functional Spec](/assets/img/functional_diagram.png)
 
 ### System Architecture
 
-![Overall System Architecture](assets/img/architecture.png)
+![System Architecture Diagram](/assets/img/architecture.png)
 
-- LED Sleeping Mask to guarantee that friends will be up in a flash!
-- Integrated Speaker and OLED screen to pass messages to your friends when they wake
-- Internet connectivity to enable friends to wake you up remotely
-- Fun for the whole friend group!
+The project has four major components working together:
+
+<table style="border-collapse: collapse; width: 100%;">
+  <tr>
+    <th style="border: 1px solid #333; padding: 8px; text-align: left;">Component</th>
+    <th style="border: 1px solid #333; padding: 8px; text-align: left;">Role</th>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #333; padding: 8px;">Sleeping Mask</td>
+    <td style="border: 1px solid #333; padding: 8px;">Passive IR-triggered LED flash mask worn by the person being woken up</td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #333; padding: 8px;">Main Controller (CC3200)</td>
+    <td style="border: 1px solid #333; padding: 8px;">FreeRTOS base station that polls backend, drives LEDs, sound, and OLED</td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #333; padding: 8px;">Backend App</td>
+    <td style="border: 1px solid #333; padding: 8px;">Custom FastAPI REST server storing wakeup state and media</td>
+  </tr>
+  <tr>
+    <td style="border: 1px solid #333; padding: 8px;">Frontend App</td>
+    <td style="border: 1px solid #333; padding: 8px;">Flutter app for creating/viewing/modifying wakeups</td>
+  </tr>
+</table>
+
+<br/>
+
+**Operation Overview:**
+1. The **Frontend App** lets a user schedule a wakeup with a time, an image URL, and a YouTube audio link. 
+2. That wakeup is stored in the **Backend**, which serves that information to the Main Controller, downloads the requested media, and converts it to a compatible format. 
+3. The **Main Controller** polls the backend for wakeup information; when wakeup time arrives, plays sound through the MAX98357A amplifier, displays the image on the OLED screen, and flashes the IR LED to trigger the sleeping mask continually until the target presses the E-Stop button.
+
+---
+
+## Implementation
+
+#### Main Controller (CC3200 + FreeRTOS)
+
+<br/>
+
+| ![Main Controller CAD](/assets/img/BombCad.png) | ![Main Controller Real](/assets/img/BombWiring.png)  |
+
+The main control flow uses TI's OSI layer over FreeRTOS with three tasks:
+
+- **`vIdleTask`**: Polls the backend via HTTP, parses wakeup time/ID, waits until the scheduled time, then pauses itself and spawns the other two tasks while displaying the image on the OLED.
+- **`vLEDTask`**: Blinks an IR LED at ~38 kHz (half-period delay of 173 cycles ≈ 13 µs at 80 MHz) to activate the sleeping mask's IR receiver. Blink rate progressively increases over time. Monitors a sync object for the E-Stop signal to self-delete.
+- **`vSoundTask`**: Drives a MAX98357A I2S amplifier connected to a 3W 8Ω speaker. Due to `I2SDataPut` blocking issues with TI's HAL, the task buzzes the data line at an abrasive frequency by deliberately misusing a non-I2S pin that happened to output data correctly. SD pin left floating, Vin/GND decoupled with a 1000 µF capacitor from the 5V rail, gain set to GND for 12 dB.
+
+The I2S pins used are `McASP0_McACLK` → LRC, `McASP0_McASFX` → BCLK, `McASP0_McAXR0` → DIN on the amplifier.
+
+Both `vLEDTask` and `vSoundTask` call `osi_SyncObjWait(OSI_NO_WAIT)` in their loops; `vIdleTask` calls it with `OSI_WAIT_FOREVER`. When the E-Stop GPIO interrupt fires, it signals the sync object to make the LED and sound tasks self-delete and the idle task resumes.
+
+All electronics are housed inside a **custom 3D-printed box** with cutouts for the OLED, speaker, E-Stop button, USB flashing port, and power jack.
+
+---
+
+#### Sleeping Mask
+
+<br/>
+
+| ![Mask Transparent Background](/assets/img/mask.png) | <img src="/assets/img/ripgrannygothitbyabazooka.jpg" style="width: 50%; height: auto;" alt="RIP granny got hit by a bazooka">  |
+
+The sleeping mask is a passive, battery-powered circuit:
+
+- **3× AAA batteries** (one holder modified with a solder bridge to fit a single cell in a 2-cell holder)
+- **1× IR Receiver**: outputs active-low when it detects ~38 kHz modulated IR at ~980 nm
+- **2× PNP transistors**: driven by the IR receiver output (active-low → PNP is correct polarity)
+- **2× Camera flash LEDs** with 3.3 Ω current-limiting resistors
 
 
-## Examples
 
-Here are a few examples of Alembic out in the wild being used in a variety of ways:
+---
 
-- [bawejakunal.github.io](https://bawejakunal.github.io/)
-- [case2111.github.io](https://case2111.github.io/)
-- [karateca.org](https://www.karateca.org/)
+#### Backend App
 
-## Installation
+![Backend code sample](/assets/img/backend_code.png)
+![Backend Live Docker](/assets/img/backend_docker.png)
 
-### Quick setup
+A **FastAPI** REST service, containerized with Docker Compose. Each wakeup record stores:
 
-To give you a running start I've put together some starter kits that you can download, fork or even deploy immediately:
+```json
+  {
+    "id": 0,
+    "description": "string",
+    "wakeup_time": 0,
+    "image_url": "string",
+    "sound_url": "string",
+    "image_path": "string",
+    "sound_path": "string",
+    "awake": true
+  }
+```
 
-- ⚗️🍨 Vanilla Jekyll starter kit  
-  [![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/daviddarnes/alembic-kit){:style="background: none"}
-- ⚗️🌲 Forestry starter kit  
-  [![Deploy to Forestry](https://assets.forestry.io/import-to-forestry.svg)](https://app.forestry.io/quick-start?repo=daviddarnes/alembic-forestry-kit&engine=jekyll){:style="background: none"}  
-  [![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/daviddarnes/alembic-forestry-kit){:style="background: none"}
-- ⚗️💠 Netlify CMS starter kit  
-  [![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/daviddarnes/alembic-netlifycms-kit&stack=cms){:style="background: none"}
+Two API surfaces:
+- **Frontend API**: CRUD API that allows the Frontend to create/update/delete wakeups
+- **Controller API**: minimal endpoint returning only the soonest wakeup time + ID and serving converted media, to minimize JSON parsing complexity on the microcontroller
 
-- ⚗️:octocat: GitHub Pages with remote theme kit  
-  {% include button.html text="Download kit" link="https://github.com/daviddarnes/alembic-kit/archive/remote-theme.zip" color="#24292e" %}
-- ⚗️🚀 Stackbit starter kit  
-  [![Create with Stackbit](https://assets.stackbit.com/badge/create-with-stackbit.svg)](https://app.stackbit.com/create?theme=https://github.com/daviddarnes/alembic-stackbit-kit){:style="background: none"}
+Media is fetched from provided URLs and converted to device-compatible formats on the server side.
 
-### As a Jekyll theme
+---
 
-1. Add `gem "alembic-jekyll-theme"` to your `Gemfile` to add the theme as a dependancy
-2. Run the command `bundle install` in the root of project to install the theme and its dependancies
-3. Add `theme: alembic-jekyll-theme` to your `_config.yml` file to set the site theme
-4. Run `bundle exec jekyll serve` to build and serve your site
-5. Done! Use the [configuration](#configuration) documentation and the example [`_config.yml`](https://github.com/daviddarnes/alembic/blob/master/_config.yml) file to set things like the navigation, contact form and social sharing buttons
+#### Frontend App (Flutter / Android)
 
-### As a GitHub Pages remote theme
+<br/>
 
-1. Add `gem "jekyll-remote-theme"` to your `Gemfile` to add the theme as a dependancy
-2. Run the command `bundle install` in the root of project to install the jekyll remote theme gem as a dependancy
-3. Add `jekyll-remote-theme` to the list of `plugins` in your `_config.yml` file
-4. Add `remote_theme: daviddarnes/alembic@main` to your `_config.yml` file to set the site theme
-5. Run `bundle exec jekyll serve` to build and serve your site
-6. Done! Use the [configuration](#configuration) documentation and the example [`_config.yml`](https://github.com/daviddarnes/alembic/blob/master/_config.yml) file to set things like the navigation, contact form and social sharing buttons
+| ![App beta](/assets/img/prelim_app.png) |  <img src="/assets/img/app.jpg" style="height: 600px; width: auto;" alt="App running on phone"> |
 
-### As a Boilerplate / Fork
+Built with Flutter for cross-platform portability; deployed as an Android APK for the demo. 
 
-_(deprecated, not recommended)_
+**Features:**
+- Create, view, edit, and delete wakeups
+- Real-time status updates when the woken user presses E-Stop
+- Refresh and notification bell UI for live wakeup monitoring
 
-1. [Fork the repo](https://github.com/daviddarnes/alembic#fork-destination-box)
-2. Replace the `Gemfile` with one stating all the gems used in your project
-3. Delete the following unnecessary files/folders: `.github`, `LICENSE`, `screenshot.png`, `CNAME` and `alembic-jekyll-theme.gemspec`
-4. Run the command `bundle install` in the root of project to install the jekyll remote theme gem as a dependancy
-5. Run `bundle exec jekyll serve` to build and serve your site
-6. Done! Use the [configuration](#configuration) documentation and the example [`_config.yml`](https://github.com/daviddarnes/alembic/blob/master/_config.yml) file to set things like the navigation, contact form and social sharing buttons
+---
 
-## Customising
+## Bill of Materials
 
-When using Alembic as a theme means you can take advantage of the file overriding method. This allows you to overwrite any file in this theme with your own custom file, by matching the file name and path. The most common example of this would be if you want to add your own styles or change the core style settings.
-
-To add your own styles copy the [`styles.scss`](https://github.com/daviddarnes/alembic/blob/master/assets/styles.scss) into your own project with the same file path (`assets/styles.scss`). From there you can add your own styles, you can even optionally ignore the theme styles by removing the `@import "alembic";` line.
-
-If you're looking to set your own colours and fonts you can overwrite them by matching the variable names from the [`_settings.scss`](https://github.com/daviddarnes/alembic/blob/master/_sass/_settings.scss) file in your own `styles.scss`, make sure to state them before the `@import "alembic";` line so they take effect. The settings are a mixture of custom variables and settings from [Sassline](https://medium.com/@jakegiltsoff/sassline-v2-0-e424b2881e7e) - follow the link to find out how to configure the typographic settings.
+| Item | Source | Unit Cost | Qty | Total |
+|---|---|---|---|---|
+| TI CC3200 Launchpad | Lab | $0 | 1 | $0 |
+| OLED Screen | Lab | $0 | 1 | $0 |
+| IR Receiver | Lab | $0 | 1 | $0 |
+| E-Stop Button | Amazon | $10.00 | 1 | $10.00 |
+| MAX98357A Amplifier | Amazon | $3.33 | 1 | $3.33 |
+| 3W 8Ω Speaker | Amazon | $2.50 | 1 | $2.50 |
+| IR LED | Amazon | $0.60 | 1 | $0.60 |
+| Camera Flash LEDs | LCSC | $0.33 | 2 | $0.66 |
+| PNP Transistors | Amazon | $0.022 | 2 | $0.044 |
+| AAA Battery Holders | Amazon | $1.25 | 2 | $2.50 |
+| Breadboard Power Supply | Amazon | $1.80 | 1 | $1.80 |
+| Sleeping Mask | Amazon | $2.30 | 1 | $2.30 |
+| Power Supply Adapter | Amazon | $5.00 | 1 | $5.00 |
+| **Total** | | | | **~$28.73** |
