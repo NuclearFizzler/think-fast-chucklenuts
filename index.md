@@ -19,7 +19,7 @@ excerpt: "A CC3200-based IoT wakeup machine with a sleeping mask, speaker, OLED,
   <div style="width:50%;">
     <div style="font-weight:bold; margin-bottom:6px;">Scuffed Full Product Demo</div>
     <video style="width:100%;" controls>
-      <source src="/assets/video/IMG_8130.mp4" type="video/mp4">
+      <source src="{{ site.baseurl }}/assets/video/IMG_8130.mp4" type="video/mp4">
       Your browser does not support the video tag.
     </video>
   </div>
@@ -27,7 +27,7 @@ excerpt: "A CC3200-based IoT wakeup machine with a sleeping mask, speaker, OLED,
   <div style="width:50%;">
     <div style="font-weight:bold; margin-bottom:6px;">Extra App Features</div>
     <video style="width:100%;" controls>
-      <source src="/assets/video/IMG_8131_rotated.mp4" type="video/mp4">
+      <source src="{{ site.baseurl }}/assets/video/IMG_8131_rotated.mp4" type="video/mp4">
       Your browser does not support the video tag.
     </video>
   </div>
@@ -37,17 +37,17 @@ excerpt: "A CC3200-based IoT wakeup machine with a sleeping mask, speaker, OLED,
 #### Cursed I2S Behavior
 <br/>
 <video width="100%" height="400" controls>
-  <source src="/assets/video/IMG_8127.mp4" type="video/mp4">
+  <source src="{{ site.baseurl }}/assets/video/IMG_8127.mp4" type="video/mp4">
   Your browser does not support the video tag.
 </video>
 ---
 
 ### Functional Specification
-![Functional Spec](/assets/img/functional_diagram.png)
+![Functional Spec]({{ site.baseurl }}/assets/img/functional_diagram.png)
 
 ### System Architecture
 
-![System Architecture Diagram](/assets/img/architecture.png)
+![System Architecture Diagram]({{ site.baseurl }}/assets/img/architecture.png)
 
 The project has four major components working together:
 
@@ -89,7 +89,7 @@ The project has four major components working together:
 
 <br/>
 
-| ![Main Controller CAD](/assets/img/BombCad.png) | ![Main Controller Real](/assets/img/BombWiring.png)  |
+| ![Main Controller CAD]({{ site.baseurl }}/assets/img/BombCad.png) | ![Main Controller Real]({{ site.baseurl }}/assets/img/BombWiring.png)  |
 
 The main control flow uses TI's OSI layer over FreeRTOS with three tasks:
 
@@ -109,7 +109,7 @@ All electronics are housed inside a **custom 3D-printed box** with cutouts for t
 
 <br/>
 
-| ![Mask Transparent Background](/assets/img/mask.png) | <img src="/assets/img/ripgrannygothitbyabazooka.jpg" style="width: 50%; height: auto;" alt="RIP granny got hit by a bazooka">  |
+| ![Mask Transparent Background]({{ site.baseurl }}/assets/img/mask.png) | <img src="{{ site.baseurl }}/assets/img/ripgrannygothitbyabazooka.jpg" style="width: 50%; height: auto;" alt="RIP granny got hit by a bazooka">  |
 
 The sleeping mask is a passive, battery-powered circuit:
 
@@ -124,8 +124,8 @@ The sleeping mask is a passive, battery-powered circuit:
 
 #### Backend App
 
-![Backend code sample](/assets/img/backend_code.png)
-![Backend Live Docker](/assets/img/backend_docker.png)
+![Backend code sample]({{ site.baseurl }}/assets/img/backend_code.png)
+![Backend Live Docker]({{ site.baseurl }}/assets/img/backend_docker.png)
 
 A **FastAPI** REST service, containerized with Docker Compose. Each wakeup record stores:
 
@@ -154,7 +154,7 @@ Media is fetched from provided URLs and converted to device-compatible formats o
 
 <br/>
 
-| ![App beta](/assets/img/prelim_app.png) |  <img src="/assets/img/app.jpg" style="height: 600px; width: auto;" alt="App running on phone"> |
+| ![App beta]({{ site.baseurl }}/assets/img/prelim_app.png) |  <img src="{{ site.baseurl }}/assets/img/app.jpg" style="height: 600px; width: auto;" alt="App running on phone"> |
 
 Built with Flutter for cross-platform portability; deployed as an Android APK for the demo. 
 
